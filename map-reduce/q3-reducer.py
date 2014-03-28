@@ -1,14 +1,14 @@
 #!/usr/bin/python 
 import sys
 import re
-import happybase
+#import happybase
 
 def main(argv):
 	current_user = None
 	retweet_list = []
 
-	connection = happybase.Connection('ec2-54-85-156-108.compute-1.amazonaws.com')
-	table = connection.table('tweets')
+	#connection = happybase.Connection('ec2-54-85-156-108.compute-1.amazonaws.com')
+	#table = connection.table('tweets')
 	# input comes from STDIN
 	for line in sys.stdin:
 		# remove leading and trailing whitespace
@@ -26,7 +26,7 @@ def main(argv):
 				for id in retweet_list:
 					res = res + id + "_"
 				print current_user + "," + res
-				table.put(current_user,{'rt':res})
+				#table.put(current_user,{'rt':res})
 
 			current_user = orig_user
 			retweet_list = []
@@ -39,9 +39,9 @@ def main(argv):
 		for id in retweet_list:
 			res = res + id + "_"
 		print current_user + "," + res
-		table.put(current_user,{'rt':res})
+		#table.put(current_user,{'rt':res})
 
-	connection.close()
+	#connection.close()
 		
 if __name__ == "__main__":
 	main(sys.argv)
