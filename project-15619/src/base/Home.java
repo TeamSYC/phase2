@@ -1,16 +1,19 @@
 package base;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 import java.util.Deque;
 import io.undertow.Undertow;
+import io.undertow.UndertowOptions;
+import io.undertow.io.IoCallback;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.Headers;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
@@ -103,11 +106,15 @@ public class Home {
 	public static void main(String[] args) {
 		final String info = "TeamSYC,8635-0832-4410\n2014-04-";
 		final SimpleDateFormat fmt = new SimpleDateFormat("dd HH:mm:ss");
-		//final Home home = new Home();
+		final Charset utf8 = Charset.forName("UTF-8");
+		final Home home = new Home();
 
 		Undertow.builder()
-		.setWorkerThreads(2048)
-		.addHttpListener(80, "localhost")
+		.setWorkerThreads(4096)
+		.setIoThreads(Runtime.getRuntime().availableProcessors() * 2)
+		.setServerOption(UndertowOptions.ALWAYS_SET_KEEP_ALIVE, false)
+		.setBufferSize(1024*16)
+		.addHttpListener(80, args[0])
 		.setHandler(new HttpHandler() {
 
 			public void handleRequest(final HttpServerExchange exchange) throws Exception {
@@ -115,20 +122,26 @@ public class Home {
 				exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "text/plain");
 				
 				if (path == '1') {
-					exchange.getResponseSender().send(info.concat(fmt.format(new Date())));
+					exchange.getResponseSender().send(ByteBuffer.wrap(info.concat(
+							fmt.format(new Date())).getBytes(utf8)
+							), IoCallback.END_EXCHANGE);
 				}
 				else if (path == '2') {
 					Map<String, Deque<String>> queryMap = exchange.getQueryParameters();
 					String userid = queryMap.get("userid").getFirst().trim();
 					String tweet_time = queryMap.get("tweet_time").getFirst().trim();
-					//String result = home.getSQLEntries(userid + "_" + tweet_time.replaceAll(" ", "+"));
+					String result = home.getSQLEntries(userid + "_" + tweet_time.replaceAll(" ", "+"));
 					//String result = home.getHBaseEntries(userid + "_" + tweet_time.replaceAll(" ", "+"));
-					//exchange.getResponseSender().send(info.concat(result));
+					exchange.getResponseSender().send(ByteBuffer.wrap(
+							info.concat(result).getBytes(utf8)
+							), IoCallback.END_EXCHANGE);
 				}
 				else if (path == '3') {
-					//Map<String, Deque<String>> queryMap = exchange.getQueryParameters();
-					//String result = home.getRetweets(queryMap.get("userid").getFirst().trim());
-					//exchange.getResponseSender().send(info.concat(result));
+					Map<String, Deque<String>> queryMap = exchange.getQueryParameters();
+					String result = home.getRetweets(queryMap.get("userid").getFirst().trim());
+					exchange.getResponseSender().send(ByteBuffer.wrap(
+							info.concat(result).getBytes(utf8)
+							), IoCallback.END_EXCHANGE);
 				}
 			}
 		}).build().start();
