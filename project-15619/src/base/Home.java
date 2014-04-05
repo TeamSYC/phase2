@@ -33,7 +33,7 @@ public class Home {
 					"root", "db15319root");
 			
 			//HBase config
-			table = new HTable(HBaseConfiguration.create(), Bytes.toBytes("tweets"));
+			//table = new HTable(HBaseConfiguration.create(), Bytes.toBytes("tweets"));
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -46,15 +46,15 @@ public class Home {
 	public String getSQLEntries(String key) {
 		try {
 			Statement stmt = driver.createStatement();
-			ResultSet set = stmt.executeQuery("SELECT tl FROM tweets WHERE user_time=\"" + key + "\"");
-			String results = "";
+			ResultSet set = stmt.executeQuery("SELECT tweet_list FROM tweets_q2 WHERE user_time=\"" + key + "\"");
+			StringBuffer results = new StringBuffer("");
 
 			while (set.next()) {
-				results += set.getString("tl").replaceAll("_", "\n");
+				results.append(set.getString("tweet_list").replaceAll("_", "\n"));
 			}
 
 			stmt.close();
-			return results.replaceAll("\t", "");	
+			return results.toString();	
 		} catch(Exception e) {
 			e.printStackTrace();
 			return null;
@@ -68,15 +68,16 @@ public class Home {
 	public String getRetweets(String userid) {
 		try {
 			Statement stmt = driver.createStatement();
-			ResultSet set = stmt.executeQuery("SELECT rtl FROM retweets WHERE userid=\"" + userid + "\"");
+			ResultSet set = stmt.executeQuery("SELECT retweet_user_list FROM tweets_q3 WHERE user_id=\"" + userid + "\"");
 			StringBuffer results = new StringBuffer();
 
 			while (set.next()) {
-				results.append(set.getString("rtl").replaceAll("_", "\n"));
+				results.append(set.getString("retweet_user_list").replaceAll("_", "\n"));
 			}
 
 			stmt.close();
-			return results.toString().replaceAll("\t", "");	
+			//return results.toString().replaceAll("\t", "");	
+			return results.toString();
 		} catch(Exception e) {
 			e.printStackTrace();
 			return null;
@@ -104,8 +105,8 @@ public class Home {
 	}
 
 	public static void main(String[] args) {
-		final String info = "TeamSYC,8635-0832-4410\n2014-04-";
-		final SimpleDateFormat fmt = new SimpleDateFormat("dd HH:mm:ss");
+		final String info = "TeamSYC,8635-0832-4410\n";
+		final SimpleDateFormat fmt = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss");
 		final Charset utf8 = Charset.forName("UTF-8");
 		final Home home = new Home();
 
