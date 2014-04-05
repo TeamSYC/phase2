@@ -6,8 +6,7 @@ import java.nio.charset.Charset;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Map;
-import java.util.Deque;
+import java.util.*;
 import io.undertow.Undertow;
 import io.undertow.UndertowOptions;
 import io.undertow.io.IoCallback;
@@ -70,13 +69,20 @@ public class Home {
 			Statement stmt = driver.createStatement();
 			ResultSet set = stmt.executeQuery("SELECT retweet_user_list FROM tweets_q3 WHERE user_id=\"" + userid + "\"");
 			StringBuffer results = new StringBuffer();
-
+			Set<Integer> retweetIds = new TreeSet<Integer>();
+			
 			while (set.next()) {
-				results.append(set.getString("retweet_user_list").replaceAll("_", "\n"));
+				String[] tokens = set.getString("retweet_user_list").split("_");
+				for (String id : tokens) {
+					retweetIds.add(Integer.parseInt(id.trim()));
+				}
 			}
 
 			stmt.close();
-			//return results.toString().replaceAll("\t", "");	
+			
+			for (int id : retweetIds) {
+				results.append("" + id + "\n");
+			}
 			return results.toString();
 		} catch(Exception e) {
 			e.printStackTrace();
