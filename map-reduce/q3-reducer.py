@@ -21,7 +21,10 @@ def main(argv):
 			retweet_list.append(retweet_user)
 		else:
 			if current_user:
+				# remove duplicate and alphabetically sort by str length
+				retweet_list = list(set(retweet_list))
 				retweet_list.sort()
+				retweet_list.sort(key=len)
 				res = ""
 				for id in retweet_list:
 					res = res + id + "_"
@@ -34,8 +37,12 @@ def main(argv):
 
 	# the last one
 	if current_user == orig_user:
-		res = ""
+		# remove duplicate and alphabetically sort by str length
+		retweet_list = list(set(retweet_list))
 		retweet_list.sort()
+		retweet_list.sort(key=len)
+
+		res = ""
 		for id in retweet_list:
 			res = res + id + "_"
 		print current_user + "," + res

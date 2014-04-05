@@ -69,19 +69,19 @@ public class Home {
 			Statement stmt = driver.createStatement();
 			ResultSet set = stmt.executeQuery("SELECT retweet_user_list FROM tweets_q3 WHERE user_id=\"" + userid + "\"");
 			StringBuffer results = new StringBuffer();
-			Set<Integer> retweetIds = new TreeSet<Integer>();
+			Set<Long> retweetIds = new TreeSet<Long>();
 			
 			while (set.next()) {
 				String[] tokens = set.getString("retweet_user_list").split("_");
 				for (String id : tokens) {
-					retweetIds.add(Integer.parseInt(id.trim()));
+					retweetIds.add(Long.parseLong(id.trim()));
 				}
 			}
 
 			stmt.close();
 			
-			for (int id : retweetIds) {
-				results.append("" + id + "\n");
+			for (long id : retweetIds) {
+				results.append(id + "\n");
 			}
 			return results.toString();
 		} catch(Exception e) {
