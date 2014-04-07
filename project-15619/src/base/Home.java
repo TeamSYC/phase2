@@ -18,18 +18,32 @@ import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
+import javax.sql.DataSource;
+import org.apache.commons.dbcp2.cpdsadapter.DriverAdapterCPDS;
+import org.apache.commons.dbcp2.datasources.SharedPoolDataSource;
 
 public class Home {
 	final String ELB_ADDR = "ec2-54-85-169-198.compute-1.amazonaws.com";
+	DataSource ds;
 	Connection driver;
 	HTable table;
 
 	public Home() {
 		try {
-			//MySQL config
+			DriverAdapterCPDS cpds = new DriverAdapterCPDS();
+			cpds.setDriver("com.mysql.jdbc.Driver");
+			cpds.setUrl("jdbc:mysql://localhost:3306/tweet_db");
+	        cpds.setUser("root");
+	        cpds.setPassword("db15319root");
+			
+	        SharedPoolDataSource tds = new SharedPoolDataSource();
+	        tds.setConnectionPoolDataSource(cpds);
+	        tds.setMaxTotal(4096);
+	        ds = tds;
+			/*//MySQL config
 			Class.forName("com.mysql.jdbc.Driver"); //Register JDBC driver.
 			driver = DriverManager.getConnection("jdbc:mysql://localhost:3306/tweet_db",
-					"root", "db15319root");
+					"root", "db15319root");*/
 			
 			//HBase config
 			//table = new HTable(HBaseConfiguration.create(), Bytes.toBytes("tweets"));
@@ -44,14 +58,16 @@ public class Home {
 	 */
 	public String getSQLEntries(String key) {
 		try {
-			Statement stmt = driver.createStatement();
+			Connection con = ds.getConnection();
+			Statement stmt = con.createStatement();
 			ResultSet set = stmt.executeQuery("SELECT tweet_list FROM tweets_q2 WHERE user_time=\"" + key + "\"");
 			StringBuffer results = new StringBuffer("");
 
 			while (set.next()) {
 				results.append(set.getString("tweet_list").replaceAll("_", "\n"));
 			}
-
+			
+			set.close();
 			stmt.close();
 			return results.toString();	
 		} catch(Exception e) {
@@ -66,7 +82,8 @@ public class Home {
 	 */
 	public String getRetweets(String userid) {
 		try {
-			Statement stmt = driver.createStatement();
+			Connection con = ds.getConnection();
+			Statement stmt = con.createStatement();
 			ResultSet set = stmt.executeQuery("SELECT retweet_user_list FROM tweets_q3 WHERE user_id=\"" + userid + "\"");
 			StringBuffer results = new StringBuffer();
 			Set<Long> retweetIds = new TreeSet<Long>();
@@ -77,9 +94,9 @@ public class Home {
 					retweetIds.add(Long.parseLong(id.trim()));
 				}
 			}
-
+			set.close();
 			stmt.close();
-			
+			con.close();
 			for (long id : retweetIds) {
 				results.append(id + "\n");
 			}
