@@ -7,7 +7,7 @@ def main(argv):
 	current_user = None
 	retweet_list = []
 
-	connection = happybase.Connection('ec2-54-85-185-35.compute-1.amazonaws.com')
+	connection = happybase.Connection('ec2-54-85-60-99.compute-1.amazonaws.com')
 	table = connection.table('tweets')
 	# input comes from STDIN
 	for line in sys.stdin:
