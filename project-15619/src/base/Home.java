@@ -1,6 +1,5 @@
 package base;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.sql.*;
@@ -19,31 +18,29 @@ import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import javax.sql.DataSource;
-import org.apache.commons.dbcp2.cpdsadapter.DriverAdapterCPDS;
-import org.apache.commons.dbcp2.datasources.SharedPoolDataSource;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 public class Home {
 	final String ELB_ADDR = "ec2-54-85-169-198.compute-1.amazonaws.com";
-	DataSource ds;
 	Connection driver;
-	HTable table;
+	DataSource ds;
+	//HTable table;
 
 	public Home() {
 		try {
-			DriverAdapterCPDS cpds = new DriverAdapterCPDS();
-			cpds.setDriver("com.mysql.jdbc.Driver");
-			cpds.setUrl("jdbc:mysql://localhost:3306/tweet_db");
-	        cpds.setUser("root");
-	        cpds.setPassword("db15319root");
+			HikariConfig config = new HikariConfig();
+			config.setMaximumPoolSize(100);
+			config.setDataSourceClassName("com.mysql.jdbc.jdbc2.optional.MysqlDataSource");
+			config.addDataSourceProperty("url", "jdbc:mysql://localhost:3306/tweet_db");
+			config.addDataSourceProperty("user", "root");
+			config.addDataSourceProperty("password", "db15319root");
+			config.addDataSourceProperty("cachePrepStmts", true);
+			config.addDataSourceProperty("useServerPrepStmts", true	);
+			config.addDataSourceProperty("prepStmtCacheSqlLimit", 2048);
+			config.addDataSourceProperty("prepStmtCacheSize", 250);
 			
-	        SharedPoolDataSource tds = new SharedPoolDataSource();
-	        tds.setConnectionPoolDataSource(cpds);
-	        tds.setMaxTotal(4096);
-	        ds = tds;
-			/*//MySQL config
-			Class.forName("com.mysql.jdbc.Driver"); //Register JDBC driver.
-			driver = DriverManager.getConnection("jdbc:mysql://localhost:3306/tweet_db",
-					"root", "db15319root");*/
+			ds = new HikariDataSource(config);
 			
 			//HBase config
 			//table = new HTable(HBaseConfiguration.create(), Bytes.toBytes("tweets"));
@@ -59,16 +56,18 @@ public class Home {
 	public String getSQLEntries(String key) {
 		try {
 			Connection con = ds.getConnection();
-			Statement stmt = con.createStatement();
-			ResultSet set = stmt.executeQuery("SELECT tweet_list FROM tweets_q2 WHERE user_time=\"" + key + "\"");
-			StringBuffer results = new StringBuffer("");
+			PreparedStatement stmt = con.prepareStatement("SELECT tweet_list FROM tweets_q2 WHERE user_time=?");
+			stmt.setString(1, key);
+			ResultSet set = stmt.executeQuery();
+			StringBuffer results = new StringBuffer();
 
 			while (set.next()) {
 				results.append(set.getString("tweet_list").replaceAll("_", "\n"));
 			}
-			
+
 			set.close();
 			stmt.close();
+			con.close();
 			return results.toString();	
 		} catch(Exception e) {
 			e.printStackTrace();
@@ -82,31 +81,26 @@ public class Home {
 	 */
 	public String getRetweets(String userid) {
 		try {
-			Connection con = ds.getConnection();
-			Statement stmt = con.createStatement();
-			ResultSet set = stmt.executeQuery("SELECT retweet_user_list FROM tweets_q3 WHERE user_id=\"" + userid + "\"");
+			Connection connection = ds.getConnection();
+			PreparedStatement stmt = connection.prepareStatement("SELECT retweet_user_list FROM tweets_q3 WHERE user_id=?");
+			stmt.setString(1, userid);
+			ResultSet rs = stmt.executeQuery();
 			StringBuffer results = new StringBuffer();
-			Set<Long> retweetIds = new TreeSet<Long>();
 			
-			while (set.next()) {
-				String[] tokens = set.getString("retweet_user_list").split("_");
-				for (String id : tokens) {
-					retweetIds.add(Long.parseLong(id.trim()));
-				}
+			while(rs.next()) {
+				results.append(rs.getString("retweet_user_list").replaceAll("_","\n"));
 			}
-			set.close();
+
+			rs.close();
 			stmt.close();
-			con.close();
-			for (long id : retweetIds) {
-				results.append(id + "\n");
-			}
+			connection.close();
 			return results.toString();
 		} catch(Exception e) {
 			e.printStackTrace();
 			return null;
 		}
 	}
-
+	/*
 	public String getHBaseEntries(String key) {		
 		Get g = new Get(Bytes.toBytes(key));
 		Result r = null;
@@ -125,14 +119,14 @@ public class Home {
 
 		res = res.replaceAll("_", "\n");
 		return res; 
-	}
+	}*/
 
 	public static void main(String[] args) {
 		final String info = "TeamSYC,8635-0832-4410\n";
 		final SimpleDateFormat fmt = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss");
 		final Charset utf8 = Charset.forName("UTF-8");
 		final Home home = new Home();
-
+		
 		Undertow.builder()
 		.setWorkerThreads(4096)
 		.setIoThreads(Runtime.getRuntime().availableProcessors() * 2)
@@ -144,7 +138,7 @@ public class Home {
 			public void handleRequest(final HttpServerExchange exchange) throws Exception {
 				char path = exchange.getRequestPath().charAt(2);
 				exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "text/plain");
-				
+
 				if (path == '1') {
 					exchange.getResponseSender().send(ByteBuffer.wrap(info.concat(
 							fmt.format(new Date())).getBytes(utf8)
@@ -162,7 +156,8 @@ public class Home {
 				}
 				else if (path == '3') {
 					Map<String, Deque<String>> queryMap = exchange.getQueryParameters();
-					String result = home.getRetweets(queryMap.get("userid").getFirst().trim());
+					String userid = queryMap.get("userid").getFirst().trim();
+					String result = home.getRetweets(userid);
 					exchange.getResponseSender().send(ByteBuffer.wrap(
 							info.concat(result).getBytes(utf8)
 							), IoCallback.END_EXCHANGE);
